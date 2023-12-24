@@ -93,6 +93,9 @@ public:
 	static MObject aSplineLength;
 	static MObject aMaxVertices;
 
+	// NURBS curve output data
+	static MObject aNurbsData;
+
 	// array
 	static MObject aVertexData;
 		// array children
