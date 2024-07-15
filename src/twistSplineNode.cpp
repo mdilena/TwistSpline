@@ -79,6 +79,7 @@ MObject TwistSplineNode::aTwistWeight;
 MObject TwistSplineNode::aUseOrient;
 
 MObject TwistSplineNode::aGeometryChanging;
+MObject TwistSplineNode::aSplineDisplay;
 MObject TwistSplineNode::aDebugDisplay;
 MObject TwistSplineNode::aDebugScale;
 MObject TwistSplineNode::aMaxVertices;
@@ -115,6 +116,8 @@ MStatus TwistSplineNode::initialize() {
 
 	//--------------- Input -------------------
 
+	aSplineDisplay = nAttr.create("splineDisplay", "sd", MFnNumericData::kBoolean, true);
+	addAttribute(aSplineDisplay);
 	aDebugDisplay = nAttr.create("debugDisplay", "dd", MFnNumericData::kBoolean, false);
 	addAttribute(aDebugDisplay);
 	aDebugScale = nAttr.create("debugScale", "ds", MFnNumericData::kDouble, 1.0);
@@ -122,7 +125,6 @@ MStatus TwistSplineNode::initialize() {
 	aMaxVertices = nAttr.create("maxVertices", "mv", MFnNumericData::kInt, 1000);
     nAttr.setMin(2);
 	addAttribute(aMaxVertices);
-
 
 	//--------------- Array -------------------
 
@@ -234,6 +236,18 @@ MBoundingBox TwistSplineNode::boundingBox() const {
 		maxz = pt[2] > maxz ? pt[2] : maxz;
 	}
 	return MBoundingBox(MPoint(minx, miny, minz), MPoint(maxx, maxy, maxz));
+}
+
+void TwistSplineNode::getSplineDraw(bool &oDraw) const {
+	MStatus stat;
+	MObject mobj = thisMObject();
+
+	oDraw = false;
+	if (!mobj.isNull()) {
+		MPlug drawPlug(mobj, aSplineDisplay);
+		if (!drawPlug.isNull())
+			drawPlug.getValue(oDraw);
+	}
 }
 
 void TwistSplineNode::getDebugDraw(bool &oDraw, double &oScale) const {
@@ -487,7 +501,7 @@ MStatus TwistSplineNode::setDependentsDirty(const MPlug& plug,
 			plug == aTwistValue || plug == aTwistWeight || plug == aUseOrient) {
 			MObject thisNode = thisMObject();
 			MPlug outputSplinePlug(thisNode, aOutputSpline);
-			MPlug nurbsDataPlug(thisNode, aOutputSpline);
+			MPlug nurbsDataPlug(thisNode, aNurbsData);
 			MPlug geometryChangingPlug(thisNode, aGeometryChanging);
 			plugArray.append(outputSplinePlug);
 			plugArray.append(nurbsDataPlug);
@@ -549,6 +563,12 @@ bool TwistSplineNode::isGeometryChanging() const {
 	return block.inputValue(TwistSplineNode::aGeometryChanging).asBool();
 }
 
+void TwistSplineNode::postConstructor() {
+	MFnDependencyNode nodeFn(thisMObject());
+	nodeFn.setName("twistSplineShape#");
+	nodeFn.setIcon("twistSpline.png");
+}
+
 // Workload for MPxGeometryOverride::updateDG()
 // Updating all the attributes needed by the renderer
 // Ensure these attributes can be accessed by outputValue() safely later
@@ -564,20 +584,10 @@ void TwistSplineNode::updateRenderAttributes() {
 // Returns the parameters required to update geometry
 // Set "TwistSplineNode::geometryChanging" to "false" to avoid duplicate update
 // [[ensure : isGeometryChanging() == false]]
-TwistSplineNode::GeometryParameters TwistSplineNode::updatingGeometry() {
+void TwistSplineNode::updatingGeometry() {
 	MDataBlock block = const_cast<TwistSplineNode*>(this)->forceCache();
 
 	// Reset the geometryChanging attribute to false so that we do not update
 	// the geometry multiple times
 	block.outputValue(TwistSplineNode::aGeometryChanging).set(false);
-
-	GeometryParameters param;
-	param.debugMode =
-		block.outputValue(TwistSplineNode::aDebugDisplay).asBool();
-	param.debugScale =
-		block.outputValue(TwistSplineNode::aDebugScale).asDouble();
-	param.splineData =
-		block.outputValue(TwistSplineNode::aOutputSpline).asPluginData();
-
-	return param;
 }
